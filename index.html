@@ -1,129 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <title>綁定姓名</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-        }
-        .box {
-            background: white;
-            padding: 20px;
-            max-width: 420px;
-            margin: auto;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        input, button {
-            width: 100%;
-            padding: 14px;
-            margin-top: 15px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-size: 16px;
-        }
-        button {
-            background: #00c300;
-            color: white;
-            cursor: pointer;
-            font-size: 17px;
-        }
-        .msg {
-            margin-top: 15px;
-            font-size: 16px;
-            color: #333;
-        }
-    </style>
-
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <meta charset="UTF-8">
+  <title>員工打卡系統</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      text-align: center;
+    }
+    button {
+      width: 80%;
+      padding: 18px;
+      margin: 15px 0;
+      font-size: 20px;
+      border: none;
+      border-radius: 12px;
+      background-color: #4CAF50;
+      color: white;
+    }
+    button.secondary {
+      background-color: #2196F3;
+    }
+  </style>
 </head>
 
 <body>
-<div class="box">
-    <h2>綁定姓名</h2>
-    <p>請輸入您在公司使用的本名</p>
+  <h2>員工打卡系統</h2>
+  <p id="welcome">登入中...</p>
 
-    <input id="nameInput" placeholder="輸入姓名">
-    <button onclick="sendRegister()">送出</button>
+  <button id="clockIn">上班打卡</button>
+  <button id="register" class="secondary">我是新員工</button>
 
-    <div id="msg" class="msg"></div>
-</div>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    const N8N_WEBHOOK = "https://booblublublu.app.n8n.cloud/webhook/liff-register";  // ← 你的 webhook URL
 
-<script>
+    async function initLIFF() {
+      await liff.init({
+        liffId: "2008602232-oZ1VyrwX"   // ← 改成你的 LIFF ID
+      });
 
-// 你的 LIFF ID
-const LIFF_ID = "2008602232-oZ1VyrwX";
-
-// 你的 n8n webhook URL
-const WEBHOOK_URL = "https://booblublublu.app.n8n.cloud/webhook/liff-register";
-
-let userId = "";
-let displayName = "";
-
-async function initLiff() {
-    try {
-        await liff.init({ liffId: LIFF_ID });
-
-        if (!liff.isLoggedIn()) {
-            liff.login();
-            return;
-        }
-
-        // 取得 LINE User 資料
-        const profile = await liff.getProfile();
-        userId = profile.userId;
-        displayName = profile.displayName;
-
-    } catch (err) {
-        document.getElementById("msg").innerHTML = "❌ LIFF 初始化錯誤：" + err;
-    }
-}
-
-async function sendRegister() {
-    const msgBox = document.getElementById("msg");
-    const name = document.getElementById("nameInput").value.trim();
-
-    if (!name) {
-        msgBox.innerHTML = "⚠️ 姓名不可空白！";
+      if (!liff.isLoggedIn()) {
+        liff.login();
         return;
-    }
+      }
 
-    // 要送給 n8n 的資料
-    const payload = {
-        action: "registerName",
-        userId: userId,
-        name: name,
-        displayName: displayName
-    };
+      const profile = await liff.getProfile();
 
-    msgBox.innerHTML = "送出中…";
+      document.getElementById("welcome").innerText =
+        `Hi ${profile.displayName}，歡迎使用打卡系統！`;
 
-    try {
-        const res = await fetch(WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+      document.getElementById("clockIn").onclick = () => {
+        fetch(N8N_WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "clockIn",
+            userId: profile.userId,
+            displayName: profile.displayName,
+            timestamp: new Date().toISOString()
+          })
+        });
+        alert("已送出上班打卡紀錄！");
+      };
+
+      document.getElementById("register").onclick = () => {
+        const name = prompt("請輸入你的姓名：");
+        if (!name) return alert("姓名不能為空");
+
+        fetch(N8N_WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "registerUser",
+            userId: profile.userId,
+            displayName: profile.displayName,
+            name: name
+          })
         });
 
-        if (res.ok) {
-            msgBox.innerHTML = "✅ 綁定成功！請回到 LINE 查看訊息。";
-        } else {
-            msgBox.innerHTML = "❌ 錯誤：" + res.status;
-        }
-
-    } catch (error) {
-        msgBox.innerHTML = "❌ 發生錯誤：" + error;
+        alert("已送出註冊資料！");
+      };
     }
-}
 
-initLiff();
-
-</script>
-
+    initLIFF();
+  </script>
 </body>
 </html>
