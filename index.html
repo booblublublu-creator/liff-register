@@ -1,40 +1,37 @@
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-async function main() {
+(async () => {
+
   await liff.init({ liffId: "2008602232-oZ1VyrwX" });
 
   if (!liff.isLoggedIn()) return liff.login();
 
-  // 取得 query 的動作
-  const urlParams = new URLSearchParams(window.location.search);
-  const action = urlParams.get("action"); // clockIn 或 register
+  // 1. 先把 LIFF 視窗關閉（這是關鍵）
+  setTimeout(() => liff.closeWindow(), 50);
 
   const profile = await liff.getProfile();
 
-  // 呼叫 n8n Webhook
-  await fetch("https://booblublublu.app.n8n.cloud/webhook/liff-entry", {
+  const urlParams = new URLSearchParams(location.search);
+  const action = urlParams.get("action");
+
+  // 2. 呼叫 n8n webhook
+  const res = await fetch("https://booblublublu.app.n8n.cloud/webhook/liff-entry", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({
       action,
       userId: profile.userId,
       displayName: profile.displayName,
       timestamp: new Date().toISOString()
     })
-  })
-  .then(r => r.json())
-  .then(async (res) => {
-    // 把結果推回聊天室
-    await liff.sendMessages([
-      {
-        type: "text",
-        text: res.message
-      }
-    ]);
   });
 
-  // 自動關閉 LIFF 視窗
-  liff.closeWindow();
-}
-main();
+  const result = await res.json();
+
+  // 3. 直接把回覆塞回 LINE 聊天室
+  await liff.sendMessages([
+    { type: "text", text: result.message }
+  ]);
+
+})();
 </script>
