@@ -1,95 +1,40 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8">
-  <title>員工打卡系統</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 30px;
-      text-align: center;
-    }
-    button {
-      width: 80%;
-      padding: 18px;
-      margin: 15px 0;
-      font-size: 20px;
-      border: none;
-      border-radius: 12px;
-      background-color: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    button.secondary {
-      background-color: #2196F3;
-    }
-  </style>
-</head>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+async function main() {
+  await liff.init({ liffId: "2008602232-oZ1VyrwX" });
 
-<body>
-  <h2>員工打卡系統</h2>
-  <p id="welcome">登入中...</p>
+  if (!liff.isLoggedIn()) return liff.login();
 
-  <button id="clockIn">上班打卡</button>
-  <button id="register" class="secondary">我是新員工</button>
+  // 取得 query 的動作
+  const urlParams = new URLSearchParams(window.location.search);
+  const action = urlParams.get("action"); // clockIn 或 register
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script>
-    const REGISTER_WEBHOOK = "https://booblublublu.app.n8n.cloud/webhook/liff-register";
-    const CLOCKIN_WEBHOOK = "https://booblublublu.app.n8n.cloud/webhook/clock-in";
+  const profile = await liff.getProfile();
 
-    async function initLIFF() {
-      await liff.init({
-        liffId: "2008602232-oZ1VyrwX"   // ← 你的 LIFF ID
-      });
-
-      if (!liff.isLoggedIn()) {
-        liff.login();
-        return;
+  // 呼叫 n8n Webhook
+  await fetch("https://booblublublu.app.n8n.cloud/webhook/liff-entry", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      userId: profile.userId,
+      displayName: profile.displayName,
+      timestamp: new Date().toISOString()
+    })
+  })
+  .then(r => r.json())
+  .then(async (res) => {
+    // 把結果推回聊天室
+    await liff.sendMessages([
+      {
+        type: "text",
+        text: res.message
       }
+    ]);
+  });
 
-      const profile = await liff.getProfile();
-      const userId = profile.userId;
-
-      document.getElementById("welcome").innerText =
-        `Hi ${profile.displayName}，歡迎使用打卡系統！`;
-
-      // ⭐ 上班打卡
-      document.getElementById("clockIn").onclick = () => {
-        fetch(CLOCKIN_WEBHOOK, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "clockIn",
-            userId,
-            displayName: profile.displayName,
-            timestamp: new Date().toISOString()
-          })
-        });
-        alert("已送出上班打卡紀錄！");
-      };
-
-      // ⭐ 新員工註冊
-      document.getElementById("register").onclick = () => {
-        const name = prompt("請輸入你的姓名：");
-        if (!name) return alert("姓名不能為空");
-
-        fetch(REGISTER_WEBHOOK, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "registerUser",
-            userId,
-            displayName: profile.displayName,
-            name: name
-          })
-        });
-
-        alert("已送出註冊資料！");
-      };
-    }
-
-    initLIFF();
-  </script>
-</body>
-</html>
+  // 自動關閉 LIFF 視窗
+  liff.closeWindow();
+}
+main();
+</script>
