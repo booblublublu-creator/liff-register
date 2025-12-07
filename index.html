@@ -18,6 +18,7 @@
       border-radius: 12px;
       background-color: #4CAF50;
       color: white;
+      cursor: pointer;
     }
     button.secondary {
       background-color: #2196F3;
@@ -34,11 +35,12 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const N8N_WEBHOOK = "https://booblublublu.app.n8n.cloud/webhook/liff-register";  // ← 你的 webhook URL
+    const REGISTER_WEBHOOK = "https://booblublublu.app.n8n.cloud/webhook/liff-register";
+    const CLOCKIN_WEBHOOK = "https://booblublublu.app.n8n.cloud/webhook/clock-in";
 
     async function initLIFF() {
       await liff.init({
-        liffId: "2008602232-oZ1VyrwX"   // ← 改成你的 LIFF ID
+        liffId: "2008602232-oZ1VyrwX"   // ← 你的 LIFF ID
       });
 
       if (!liff.isLoggedIn()) {
@@ -47,17 +49,19 @@
       }
 
       const profile = await liff.getProfile();
+      const userId = profile.userId;
 
       document.getElementById("welcome").innerText =
         `Hi ${profile.displayName}，歡迎使用打卡系統！`;
 
+      // ⭐ 上班打卡
       document.getElementById("clockIn").onclick = () => {
-        fetch(N8N_WEBHOOK, {
+        fetch(CLOCKIN_WEBHOOK, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "clockIn",
-            userId: profile.userId,
+            userId,
             displayName: profile.displayName,
             timestamp: new Date().toISOString()
           })
@@ -65,16 +69,17 @@
         alert("已送出上班打卡紀錄！");
       };
 
+      // ⭐ 新員工註冊
       document.getElementById("register").onclick = () => {
         const name = prompt("請輸入你的姓名：");
         if (!name) return alert("姓名不能為空");
 
-        fetch(N8N_WEBHOOK, {
+        fetch(REGISTER_WEBHOOK, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "registerUser",
-            userId: profile.userId,
+            userId,
             displayName: profile.displayName,
             name: name
           })
